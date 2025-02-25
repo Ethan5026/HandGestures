@@ -1,15 +1,16 @@
+import os
 import requests
 import zipfile
 import io
 from boxsdk import OAuth2, Client
 from concurrent.futures import ThreadPoolExecutor
 
-# Box authentication (replace with your credentials)
+# Box authentication(replace with your credentials)
 def authenticate_box():
     auth = OAuth2(
-        client_id='cseg4cofbhc3qefojxeporq620htm7t1',
-        client_secret='f97d0oJyDHCznl8LCyHtcYRynlRuez6T',
-        access_token='F1NNoG5bplyANGHFGKK6qC1b8JaJm7pw',
+        client_id=os.getenv('BOX_CLIENT_ID'),
+        client_secret=os.getenv('BOX_CLIENT_SECRET'),
+        access_token=os.getenv('BOX_ACCESS_TOKEN'),
     )
     return Client(auth)
 

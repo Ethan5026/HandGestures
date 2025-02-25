@@ -1,0 +1,36 @@
+name: Upload Hagrid ZIP to Box
+
+# Trigger the workflow on push to the main branch or manual dispatch
+on:
+  workflow_dispatch:  # Allows manual triggering from the GitHub UI
+
+jobs:
+  upload-to-box:
+    runs-on: ubuntu-latest  # Use Ubuntu as the runner
+
+    steps:
+      # Step 1: Checkout the repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'  # Match your local Python version
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests boxsdk
+
+      # Step 4: Run the Python script
+      - name: Run Box upload script
+        env:
+          BOX_CLIENT_ID: ${{ secrets.BOX_CLIENT_ID }}
+          BOX_CLIENT_SECRET: ${{ secrets.BOX_CLIENT_SECRET }}
+          BOX_ACCESS_TOKEN: ${{ secrets.BOX_ACCESS_TOKEN }}
+          BOX_FOLDER_ID: ${{ secrets.BOX_FOLDER_ID }}
+        run: |
+          python box_upload.py
