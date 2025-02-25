@@ -8,12 +8,12 @@ import mediapipe as mp
 from concurrent.futures import ThreadPoolExecutor
 
 
-# Box authentication (replace with your credentials)
+# Box authentication
 def authenticate_box():
     auth = OAuth2(
-        client_id='YOUR_CLIENT_ID',
-        client_secret='YOUR_CLIENT_SECRET',
-        access_token='YOUR_ACCESS_TOKEN',
+        client_id=os.getenv('BOX_CLIENT_ID'),
+        client_secret=os.getenv('BOX_CLIENT_SECRET'),
+        access_token=os.getenv('BOX_ACCESS_TOKEN'),
     )
     return Client(auth)
 

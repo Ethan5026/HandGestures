@@ -2,11 +2,16 @@ name: Upload Hagrid ZIP to Box
 
 # Trigger the workflow on push to the main branch or manual dispatch
 on:
-  workflow_dispatch:  # Allows manual triggering from the GitHub UI
+  workflow_dispatch:
+    inputs:
+      arguments:
+        description: 'Arguments to pass to box_upload.py (e.g., "dislike like" or "dislike")'
+        required: true
+        default: 'dislike like ok peace palm'
 
 jobs:
   upload-to-box:
-    runs-on: ubuntu-latest  # Use Ubuntu as the runner
+    runs-on: ubuntu-latest
 
     steps:
       # Step 1: Checkout the repository code
@@ -17,7 +22,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'  # Match your local Python version
+          python-version: '3.12'
 
       # Step 3: Install dependencies
       - name: Install dependencies
@@ -25,7 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests boxsdk
 
-      # Step 4: Run the Python script
+      # Step 4: Run the Python script with selected arguments
       - name: Run Box upload script
         env:
           BOX_CLIENT_ID: ${{ secrets.BOX_CLIENT_ID }}
@@ -33,4 +38,4 @@ jobs:
           BOX_ACCESS_TOKEN: ${{ secrets.BOX_ACCESS_TOKEN }}
           BOX_FOLDER_ID: ${{ secrets.BOX_FOLDER_ID }}
         run: |
-          python box_upload.py
+          python box_upload.py ${{ github.event.inputs.arguments }}

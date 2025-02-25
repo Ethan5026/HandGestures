@@ -4,6 +4,7 @@ import zipfile
 import io
 from boxsdk import OAuth2, Client
 from concurrent.futures import ThreadPoolExecutor
+import sys
 
 # Box authentication(replace with your credentials)
 def authenticate_box():
@@ -70,7 +71,7 @@ def upload_unzipped_from_url(box_client, download_url, folder_id, chunk_size=10*
 
     print("All files uploaded successfully.")
 
-def main():
+def main(gestures):
 
     dislike_url = "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/dislike.zip"
     dislike_folder = "309095126275"
@@ -87,21 +88,35 @@ def main():
     peace_url = "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/peace.zip"
     peace_folder = "309093926036"
 
-    downloads = [
-        [dislike_url, dislike_folder],
-        [like_url, like_folder],
-        [ok_url, ok_folder],
-        [palm_url, palm_folder],
-        [peace_url, peace_folder]
-        ]
+    downloads = {
+        "dislike": [dislike_url, dislike_folder],
+        "like": [like_url, like_folder],
+        "ok": [ok_url, ok_folder],
+        "palm": [palm_url, palm_folder],
+        "peace" : [peace_url, peace_folder]
+    }
     # Authenticate with Box
     box_client = authenticate_box()
-    for download in downloads:
-        # Upload the file
-        upload_unzipped_from_url(box_client, download[0], download[1])
+    for gesture in gestures:
+        if gesture in downloads:
+            print(f"Starting gesture download/upload for {gesture}"
+                  f"\nDownload Link: {downloads[gesture][0]}"
+                  f"\nFolder ID: {downloads[gesture][1]}")
+            # Upload the file
+            upload_unzipped_from_url(box_client, downloads[gesture][0], downloads[gesture][1])
+        else:
+            print(f"Gesture link not found for: {gesture}")
 
 if __name__ == "__main__":
-    main()
+    arguments = sys.argv
+    print(f"Script name: {arguments[0]}")
+    gestures = []
+    if len(arguments) > 1:
+        for i, arg in enumerate(arguments[1:]):
+            gestures.append(arg)
+        main(gestures)
+    else:
+        print("No arguments provided.")
 
 
 
