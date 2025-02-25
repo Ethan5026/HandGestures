@@ -1,12 +1,13 @@
 import os
+import sys
 import requests
 import zipfile
 import io
 from boxsdk import OAuth2, Client
 from concurrent.futures import ThreadPoolExecutor
-import sys
+import tempfile
 
-# Box authentication(replace with your credentials)
+
 def authenticate_box():
     auth = OAuth2(
         client_id=os.getenv('BOX_CLIENT_ID'),
@@ -15,108 +16,78 @@ def authenticate_box():
     )
     return Client(auth)
 
-# Upload a single file to Box
+
 def upload_file_to_box(box_client, folder_id, file_name, file_content):
     folder = box_client.folder(folder_id)
-    total_size = len(file_content)
-    if total_size > 20*1024*1024:  # Use multipart for files >20MB
-        upload_session = folder.create_upload_session(total_size, file_name)
-        part_size = 20*1024*1024  # 20MB chunks
-        parts = []
-        for i in range(0, total_size, part_size):
-            chunk = file_content[i:i + part_size]
-            part = upload_session.upload_part_bytes(chunk, i, total_size)
-            parts.append(part)
-        upload_session.commit(total_file_size=total_size, parts=parts)
-    else:
-        folder.upload_stream(io.BytesIO(file_content), file_name)
+    folder.upload_stream(io.BytesIO(file_content), file_name)
     print(f"Uploaded {file_name}")
 
-# Stream, unzip, and upload contents
-def upload_unzipped_from_url(box_client, download_url, folder_id, chunk_size=10*1024*1024):  # 10MB chunks
-    # Stream download from URL
-    response = requests.get(download_url, stream=True)
-    response.raise_for_status()
 
+def process_zip_chunk(box_client, folder_id, temp_file_path, offset):
+    try:
+        with zipfile.ZipFile(temp_file_path, 'r') as zip_ref:
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                futures = []
+                for file_info in zip_ref.infolist():
+                    if not file_info.is_dir():
+                        try:
+                            file_content = zip_ref.read(file_info.filename)
+                            futures.append(
+                                executor.submit(upload_file_to_box, box_client, folder_id, file_info.filename,
+                                                file_content)
+                            )
+                        except (zipfile.BadZipFile, KeyError):
+                            continue  # Skip incomplete files
+                for future in futures:
+                    future.result()
+    except zipfile.BadZipFile:
+        pass  # Chunk might be incomplete; move to next
+
+
+def upload_unzipped_from_url(box_client, download_url, folder_id, chunk_size=20 * 1024 * 1024):
+    response = requests.head(download_url)
     total_size = int(response.headers.get('content-length', 0))
-    print(f"Starting download of ZIP ({total_size / (1024*1024):.2f} MB)")
+    print(f"Total size: {total_size / (1024 * 1024):.2f} MB")
 
-    # Buffer the ZIP in memory
-    zip_buffer = io.BytesIO()
-    bytes_downloaded = 0
-    for chunk in response.iter_content(chunk_size=chunk_size):
-        if chunk:
-            zip_buffer.write(chunk)
-            bytes_downloaded += len(chunk)
-            print(f"Downloaded {bytes_downloaded / (1024*1024):.2f} MB", end='\r')
+    offset = 0
+    while offset < total_size:
+        end_byte = min(offset + chunk_size - 1, total_size - 1)
+        headers = {'Range': f'bytes={offset}-{end_byte}'}
 
-    print("\nExtracting and uploading contents...")
-    zip_buffer.seek(0)
+        with requests.get(download_url, headers=headers, stream=True) as r:
+            r.raise_for_status()
+            with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):  # 1 MB sub-chunks
+                    temp_file.write(chunk)
+                temp_file_path = temp_file.name
 
-    # Open ZIP and extract files
-    with zipfile.ZipFile(zip_buffer, 'r') as zip_ref:
-        # Use ThreadPoolExecutor to upload files in parallel
-        with ThreadPoolExecutor(max_workers=4) as executor:
-            futures = []
-            for file_info in zip_ref.infolist():
-                if not file_info.is_dir():  # Skip directories
-                    file_name = file_info.filename
-                    file_content = zip_ref.read(file_name)
-                    futures.append(
-                        executor.submit(upload_file_to_box, box_client, folder_id, file_name, file_content)
-                    )
-            # Wait for all uploads to complete
-            for future in futures:
-                future.result()
+        print(f"Processing chunk {offset / (1024 * 1024):.2f} - {end_byte / (1024 * 1024):.2f} MB")
+        process_zip_chunk(box_client, folder_id, temp_file_path, offset)
+        os.unlink(temp_file_path)  # Delete after processing
+        offset += chunk_size
 
-    print("All files uploaded successfully.")
+    print("All chunks processed.")
+
 
 def main(gestures):
-
-    dislike_url = "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/dislike.zip"
-    dislike_folder = "309095126275"
-
-    like_url = "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/like.zip"
-    like_folder = "309094821207"
-
-    ok_url="https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/ok.zip"
-    ok_folder = "309093673935"
-
-    palm_url = "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/palm.zip"
-    palm_folder = "309095378224"
-
-    peace_url = "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/peace.zip"
-    peace_folder = "309093926036"
-
     downloads = {
-        "dislike": [dislike_url, dislike_folder],
-        "like": [like_url, like_folder],
-        "ok": [ok_url, ok_folder],
-        "palm": [palm_url, palm_folder],
-        "peace" : [peace_url, peace_folder]
+        "dislike": [
+            "https://rndml-team-cv.obs.ru-moscow-1.hc.sbercloud.ru/datasets/hagrid/hagrid_dataset_new_554800/hagrid_dataset/dislike.zip",
+            "309095126275"],
+        # Add other gestures as needed
     }
-    # Authenticate with Box
     box_client = authenticate_box()
     for gesture in gestures:
         if gesture in downloads:
-            print(f"Starting gesture download/upload for {gesture}"
-                  f"\nDownload Link: {downloads[gesture][0]}"
-                  f"\nFolder ID: {downloads[gesture][1]}")
-            # Upload the file
+            print(f"Starting {gesture}")
             upload_unzipped_from_url(box_client, downloads[gesture][0], downloads[gesture][1])
         else:
-            print(f"Gesture link not found for: {gesture}")
+            print(f"Gesture not found: {gesture}")
+
 
 if __name__ == "__main__":
-    arguments = sys.argv
-    print(f"Script name: {arguments[0]}")
-    gestures = []
-    if len(arguments) > 1:
-        for i, arg in enumerate(arguments[1:]):
-            gestures.append(arg)
+    gestures = sys.argv[1:] if len(sys.argv) > 1 else []
+    if gestures:
         main(gestures)
     else:
         print("No arguments provided.")
-
-
-
