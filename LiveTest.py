@@ -98,13 +98,14 @@ def landmarksToArray(landmarks):
     return flat_landmarks
 
 if __name__ == '__main__':
-    d1, l1, d2, l2 = FullDataLabels()
+    #d1, l1, d2, l2 = FullDataLabels()
     #d1, l1 = GetDataLabels("HaGRID/train/like.json")
     #d2, l2 = GetDataLabels("HaGRID/test/like.json")
-    print("Starting Training")
+    #print("Starting Training")
 
-    svm = GestureSVM()
-    svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+    #svm = GestureSVM()
+    #svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
 
+    svm = GestureSVM(model="models/AllGestures-03-03-2025.model")
     print("Starting Stream")
     liveTest(svm)

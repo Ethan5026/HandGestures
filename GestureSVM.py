@@ -11,11 +11,12 @@ class GestureSVM:
     """A SVM for gesture detection"""
 
 
-    def __init__(self, kernel="linear", model=None):
+    def __init__(self, model=None):
         """Create the SVM with a specified kernel (default 'linear'). Set model to import a pre-trained model"""
 
         self.svm = LinearSVC()
         if model:
+            self.trained = True
             self.svm = joblib.load(model)
 
     def train(self, trainingData, trainingLabels):
