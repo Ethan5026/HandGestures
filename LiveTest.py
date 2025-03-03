@@ -2,8 +2,10 @@
 import cv2
 import time
 import mediapipe as mp
+import numpy as np
 
 from DataTools import FullDataLabels, SVMLinear, GetDataLabels
+from GestureSVM import GestureSVM
 
 
 def liveTest(model):
@@ -29,7 +31,7 @@ def liveTest(model):
         ret, frame = capture.read()
 
         # resizing the frame for better view
-        frame = cv2.resize(frame, (1600, 1200))
+        frame = cv2.resize(frame, (800, 600))
 
         # Converting the from BGR to RGB
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -46,11 +48,11 @@ def liveTest(model):
 
         if results.right_hand_landmarks:
             rightHandLandmarks = landmarksToArray([[lm.x, lm.y, lm.z] for lm in results.right_hand_landmarks.landmark])
-            rightHandClass = model.predict([rightHandLandmarks])
+            rightHandClass = model.predict([rightHandLandmarks])[0]
 
         if results.left_hand_landmarks:
             leftHandLandmarks = landmarksToArray([[lm.x, lm.y, lm.z] for lm in results.left_hand_landmarks.landmark])
-            leftHandClass = model.predict([leftHandLandmarks])
+            leftHandClass = model.predict([leftHandLandmarks])[0]
 
         # Drawing Right hand Land Marks
         mpDrawing.draw_landmarks(
@@ -73,8 +75,8 @@ def liveTest(model):
 
         # Displaying FPS on the image
         cv2.putText(image, str(int(fps)) + " FPS", (10, 70), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(image, f"Right Hand: {rightHandClass[0]}", (10, 100), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(image, f"Left Hand: {leftHandClass[0]}", (10, 130), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(image, f"Right Hand: {rightHandClass}", (10, 100), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(image, f"Left Hand: {leftHandClass}", (10, 130), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
 
         # Display the resulting image
         cv2.imshow("Facial and Hand Landmarks", image)
@@ -97,8 +99,12 @@ def landmarksToArray(landmarks):
 
 if __name__ == '__main__':
     d1, l1, d2, l2 = FullDataLabels()
-    #d1, l1 = getDataLabels("HaGRID/train/like.json")
-    #d2, l2 = getDataLabels("HaGRID/train/like.json")
+    #d1, l1 = GetDataLabels("HaGRID/train/like.json")
+    #d2, l2 = GetDataLabels("HaGRID/test/like.json")
+    print("Starting Training")
 
-    model = SVMLinear(d1, l1, d2, l2)
-    liveTest(model)
+    svm = GestureSVM()
+    svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+
+    print("Starting Stream")
+    liveTest(svm)

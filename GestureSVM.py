@@ -4,7 +4,7 @@ import joblib
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
-from sklearn.svm import SVC
+from sklearn.svm import SVC, LinearSVC
 import seaborn as sns
 
 class GestureSVM:
@@ -14,7 +14,7 @@ class GestureSVM:
     def __init__(self, kernel="linear", model=None):
         """Create the SVM with a specified kernel (default 'linear'). Set model to import a pre-trained model"""
 
-        self.svm = SVC(kernel=kernel)
+        self.svm = LinearSVC()
         if model:
             self.svm = joblib.load(model)
 
@@ -23,7 +23,10 @@ class GestureSVM:
         self.trained = True
         self.svm.fit(trainingData, trainingLabels)
 
+
     def predict(self, testData):
+        if self.trained == False:
+            raise RuntimeError("SVM must be trained on data before predicting, call train() first")
         """Predicts data using the SVM"""
         return self.svm.predict(testData)
 
@@ -33,20 +36,12 @@ class GestureSVM:
         score = self.svm.score(testData, testLabels)
         predictions = self.svm.predict(testData)
         confusionMatrix = confusion_matrix(testLabels, testLabels)
-        supportVectors = self.svm.support_vectors_.tolist()
-        dualCoefficient = self.svm.dual_coef_
-        featureWeights = None
         decisionFunction = self.svm.decision_function(testData).tolist()
         classificationReport = classification_report(testLabels, predictions, output_dict=True)
-
-        if self.svm.kernel == 'linear':
-            featureWeights = self.svm.coef_
+        featureWeights = self.svm.coef_
         self.testResults = {
             "accuracy": score,
-            "supportVectors": supportVectors,
-            "numSupportVectors": len(supportVectors),
             "confusionMatrix": confusionMatrix,
-            "dualCoefficient": dualCoefficient,
             "featureWeights": featureWeights,
             "predictions": predictions.tolist(),
             "decisionFunction": decisionFunction,
@@ -55,7 +50,7 @@ class GestureSVM:
         return self.testResults
 
     def export(self, modelName):
-        joblib.dump(self.svm, f"models/{modelName}.pkl")
+        joblib.dump(self.svm, f"models/{modelName}.model")
 
     def graph(self, filename=None):
         """Creates a full report on the SVM. Can save the report to visuals directory if filename is specified"""
@@ -73,15 +68,6 @@ class GestureSVM:
         plt.xlabel("Predicted")
         plt.ylabel("True")
 
-        # 2. Support Vectors Scatter Plot (only if 2D data)
-        if len(self.testResults["supportVectors"][0]) == 2:  # Check if 2D
-            plt.subplot(2, 3, 2)
-            sv_array = np.array(self.testResults["supportVectors"])
-            plt.scatter(sv_array[:, 0], sv_array[:, 1], c="red", label="Support Vectors", edgecolors="k")
-            plt.title(f"Support Vectors (n={self.testResults['numSupportVectors']})")
-            plt.xlabel("Feature 1")
-            plt.ylabel("Feature 2")
-            plt.legend()
 
         # 3. Feature Weights Bar Plot (only for linear kernel)
         if self.testResults["featureWeights"] is not None:
@@ -137,7 +123,7 @@ class GestureSVM:
 def SVMLinear(trainingData, trainingLabels, testData, testLabels):
     """Create, train, test, and graph a svm given training and test data"""
     svm = GestureSVM()
-    svm.train(trainingData=trainingData , trainingLabels=trainingLabels)
-    svm.test(testData=testData , testLabels=testLabels)
+    svm.train(trainingData=np.array(trainingData) , trainingLabels=np.array(trainingLabels))
+    svm.test(testData=np.array(testData) , testLabels=np.array(testLabels))
     svm.graph()
     return svm

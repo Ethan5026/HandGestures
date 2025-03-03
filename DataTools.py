@@ -7,7 +7,6 @@ from GestureSVM import GestureSVM, SVMLinear
 
 def GetDataLabels(filepath):
     """Get the data and labels for a gesture (dislike, like, ok, etc) and a data type (train/val/test)"""
-
     if not os.path.exists(filepath):
         raise RuntimeError(f"No file found at {filepath}")
     X = []  # Features (hand landmarks)
@@ -49,7 +48,7 @@ def GetDataLabels(filepath):
             X.append(flat_landmarks)
             Y.append(label)
 
-    return np.array(X), np.array(Y)
+    return X, Y
 
 def FullDataLabels():
     """Get all training and test data and labels from the full HaGRID dataset"""
@@ -63,18 +62,20 @@ def FullDataLabels():
 
     for filepath in trainingFiles:
         X, Y = GetDataLabels(f"HaGRID/train/{filepath}")
+        print(f"Getting Data Label {filepath}")
         for x in X:
             trainingData.append(x)
         for y in Y:
             trainingLabels.append(y)
 
     for filepath in testingFiles:
+        print(f"Getting Test Label {filepath}")
         X, Y = GetDataLabels(f"HaGRID/test/{filepath}")
         for x in X:
             testingData.append(x)
         for y in Y:
             testingLabels.append(y)
-
+    print("Done collecting data")
     return trainingData, trainingLabels, testingData, testingLabels
 
 if __name__ == '__main__':
