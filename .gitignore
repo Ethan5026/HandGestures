@@ -2,3 +2,5 @@
 .idea
 visuals/*
 models/*
+env/
+__pycache__
