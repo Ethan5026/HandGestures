@@ -1,6 +1,7 @@
 import json
 import os
 import numpy as np
+import cv2
 
 from GestureSVM import GestureSVM, SVMLinear
 
@@ -77,6 +78,40 @@ def FullDataLabels():
             testingLabels.append(y)
     print("Done collecting data")
     return trainingData, trainingLabels, testingData, testingLabels
+
+#Methods for training on Images
+def LoadImagesFromFolder(folder, label, img_size=(64, 64)):
+    """Load images from a folder and preprocess them"""
+    images = []
+    labels = []
+    for filename in os.listdir(folder):
+        img_path = os.path.join(folder, filename)
+        if not img_path.endswith(('.png', '.jpg', '.jpeg')):
+            continue
+        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)  # Load as grayscale
+        if img is None:
+            continue
+        img = cv2.resize(img, img_size)  # Resize to fixed size
+        img = img.flatten()  # Flatten into a 1D vector
+        images.append(img)
+        labels.append(label)
+    return images, labels
+
+def PrepareDatasetImages(train_folder, test_folder, img_size=(64, 64)):
+    """Prepare the dataset by loading and preprocessing images"""
+    # Load training data
+    train_images, train_labels = LoadImagesFromFolder(train_folder, label=1, img_size=img_size)
+
+    # Load test data
+    test_images, test_labels = LoadImagesFromFolder(test_folder, label=1, img_size=img_size)
+
+    # Convert to numpy arrays
+    train_images = np.array(train_images)
+    train_labels = np.array(train_labels)
+    test_images = np.array(test_images)
+    test_labels = np.array(test_labels)
+
+    return train_images, train_labels, test_images, test_labels
 
 if __name__ == '__main__':
     trainingData, trainingLabels, testingData, testingLabels = FullDataLabels()
