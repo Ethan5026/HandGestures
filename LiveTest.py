@@ -3,7 +3,6 @@ import cv2
 import time
 import mediapipe as mp
 import numpy as np
-from sklearn.preprocessing import LabelEncoder
 from datetime import datetime
 
 from DataTools import FullDataLabels, SVMLinear, GetDataLabels, PrepareDatasetImages
@@ -130,12 +129,10 @@ if __name__ == '__main__':
 
     #Boosting SVM Training with Annotations
 
-    d1, l1, d2, l2 = FullDataLabels()
-    print("Starting Training")
-    svm = SVMwBoosting()
-    label_encoder = LabelEncoder()
-    l1 = label_encoder.fit_transform(l1)
-    svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+    # d1, l1, d2, l2 = FullDataLabels()
+    # print("Starting Training")
+    # svm = SVMwBoosting()
+    # svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
 
     #------------------------------------------------------------------#
 
@@ -146,10 +143,10 @@ if __name__ == '__main__':
     # svm.train(trainingData=d1 , trainingLabels=l1)
 
     #Export Model for Future Use
-    current_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-    svm.export(f"SVMwBoosting-{current_time}")
+    # current_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+    # svm.export(f"SVMwBoosting-{current_time}")
 
-    #svm = GestureSVM(model="models/SVMwBagging-03-22-2025_18-10-51_4.model")
+    svm = GestureSVM(model="models/SVMwBoosting-03-24-2025_20-59-16_4.model")
 
     print("Starting Stream")
     liveTest(svm)

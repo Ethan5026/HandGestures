@@ -6,6 +6,7 @@ from sklearn.utils import resample
 import seaborn as sns
 import matplotlib.pyplot as plt
 from GestureSVM import GestureSVM
+from sklearn.preprocessing import LabelEncoder
 
 class SVMwBoosting:
     """Boosting ensemble of GestureSVMs using scikit-learn."""
@@ -15,10 +16,15 @@ class SVMwBoosting:
         self.models = []
         self.alphas = []
         self.trained = False
+        self.label_encoder = LabelEncoder()  # Initialize label encoder
 
     def train(self, trainingData, trainingLabels):
         """Train the boosting SVM ensemble on training data."""
         self.trained = True
+
+        # Encode labels to numbers (if labels are strings)
+        trainingLabelsEnumerated = self.label_encoder.fit_transform(trainingLabels)
+
         n_samples = len(trainingLabels)
         weights = np.ones(n_samples) / n_samples  # Initialize weights equally
 
@@ -39,16 +45,16 @@ class SVMwBoosting:
 
             # Predictions on the training data
             print("Predicting")
-            predictions = svm.predict(trainingData)
+            predictions = self.label_encoder.transform(svm.predict(trainingData))
 
             # Compute error rate
-            err = np.sum(weights * (predictions != trainingLabels)) / np.sum(weights)
+            err = np.sum(weights * (predictions != trainingLabelsEnumerated)) / np.sum(weights)
 
             # Calculate model weight (alpha), preventing division by zero
             alpha = 0.5 * np.log((1 - err) / max(err, 1e-10))
 
-            # Update sample weights
-            weights *= np.exp(-alpha * trainingLabels * predictions)
+            # Update sample weights using numeric labels
+            weights *= np.exp(-alpha * trainingLabelsEnumerated * predictions)
             weights /= np.sum(weights)  # Normalize weights
 
             # Store the model and alpha
@@ -68,6 +74,9 @@ class SVMwBoosting:
 
     def test(self, testData, testLabels):
         """Evaluate the boosting SVM ensemble."""
+        # Encode test labels to numbers
+        testLabels = self.label_encoder.transform(testLabels)
+
         predictions = self.predict(testData)
         accuracy = accuracy_score(testLabels, predictions)
         confusionMatrix = confusion_matrix(testLabels, predictions)
