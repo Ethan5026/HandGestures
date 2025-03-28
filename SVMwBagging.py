@@ -47,7 +47,7 @@ class SVMwBagging:
             raise RuntimeError("BaggingSVM must be trained on data before predicting, call train() first")
 
         # Get predictions from each model
-        print(len(self.models))
+        #print(len(self.models))
         predictions = np.array([model.predict(testData) for model in self.models])
 
         # Convert string labels to numerical if needed
