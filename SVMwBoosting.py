@@ -7,23 +7,33 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from GestureSVM import GestureSVM
 from sklearn.preprocessing import LabelEncoder
+import pickle
+from collections import Counter
 
 class SVMwBoosting:
-    """Boosting ensemble of GestureSVMs using scikit-learn."""
+    """Boosting ensemble of GestureSVMs with manual label handling."""
 
-    def __init__(self, n_estimators=5):
+    def __init__(self, n_estimators=5, model=None, class_labels=None):
         self.n_estimators = n_estimators
         self.models = []
         self.alphas = []
         self.trained = False
-        self.label_encoder = LabelEncoder()  # Initialize label encoder
+        self.class_labels = class_labels  # Manually provide class labels if needed
+
+        if model and os.path.exists(model):
+            self.load_model(model)
+
+    def load_model(self, model_path):
+        """Load model from pickle file (without LabelEncoder)."""
+        with open(model_path, "rb") as f:
+            self.models, self.alphas = pickle.load(f)
+            self.n_estimators = len(self.models)
+            self.trained = True
 
     def train(self, trainingData, trainingLabels):
-        """Train the boosting SVM ensemble on training data."""
-        self.trained = True
-
-        # Encode labels to numbers (if labels are strings)
-        trainingLabelsEnumerated = self.label_encoder.fit_transform(trainingLabels)
+        """Train the boosting SVM ensemble (with manual label handling)."""
+        # Get unique class labels and sort them
+        self.class_labels = sorted(list(set(trainingLabels)))
 
         n_samples = len(trainingLabels)
         weights = np.ones(n_samples) / n_samples  # Initialize weights equally
@@ -32,76 +42,95 @@ class SVMwBoosting:
             print(f"Training SVM {i + 1}/{self.n_estimators}")
 
             # Create a bootstrap sample
-            X_boot, y_boot = resample(trainingData, trainingLabels)
+            indices = np.random.choice(n_samples, size=n_samples)
+            X_boot = trainingData[indices]
+            y_boot = [trainingLabels[i] for i in indices]
 
             # Train a new GestureSVM on the bootstrap sample
             svm = GestureSVM()
-
-            print("Computing Sample Weight")
-            sample_weights = compute_sample_weight(class_weight='balanced', y=y_boot)
-
-            print("Fitting GestureSVM model")
             svm.train(X_boot, y_boot)
 
             # Predictions on the training data
-            print("Predicting")
-            predictions = self.label_encoder.transform(svm.predict(trainingData))
+            predictions = svm.predict(trainingData)
 
-            # Compute error rate
-            err = np.sum(weights * (predictions != trainingLabelsEnumerated)) / np.sum(weights)
+            # Compute error rate (manually compare labels)
+            err = np.mean([1 if p != t else 0 for p, t in zip(predictions, trainingLabels)])
 
-            # Calculate model weight (alpha), preventing division by zero
+            # Calculate model weight (alpha)
             alpha = 0.5 * np.log((1 - err) / max(err, 1e-10))
 
-            # Update sample weights using numeric labels
-            weights *= np.exp(-alpha * trainingLabelsEnumerated * predictions)
+            # Update sample weights
+            weights *= np.exp(alpha * np.array([1 if p != t else 0 for p, t in zip(predictions, trainingLabels)]))
             weights /= np.sum(weights)  # Normalize weights
 
             # Store the model and alpha
-            print("Store models")
             self.models.append(svm)
             self.alphas.append(alpha)
 
-    def predict(self, testData):
-        """Predict using the ensemble with weighted voting."""
-        if not self.trained:
-            raise RuntimeError("BoostingSVM must be trained before predicting.")
+        self.trained = True
 
+    def predict(self, testData):
+        """Predict using weighted voting (handles string labels)."""
+        if not self.trained:
+            raise RuntimeError("Model must be trained before predicting.")
+
+        # Get predictions from each model (raw string labels)
         predictions = np.array([model.predict(testData) for model in self.models])
-        weighted_votes = np.dot(np.array(self.alphas), predictions)
-        final_predictions = np.sign(weighted_votes)
-        return final_predictions
+
+        # If class_labels are known, use weighted voting
+        if self.class_labels:
+            # Convert predictions to indices for weighted voting
+            pred_indices = np.array([
+                [self.class_labels.index(p) for p in preds]
+                for preds in predictions
+            ])
+            weighted_votes = np.dot(np.array(self.alphas).reshape(-1, 1), pred_indices)
+            final_indices = np.argmax(weighted_votes, axis=0)
+            return [self.class_labels[i] for i in final_indices]
+        else:
+            # Fallback: Majority voting using np.unique (works with strings)
+            return [self._mode(preds) for preds in predictions.T]
+
+    def _mode(self, arr):
+        """Custom mode function for string labels."""
+        counts = Counter(arr)
+        return max(counts.items(), key=lambda x: x[1])[0]
 
     def test(self, testData, testLabels):
-        """Evaluate the boosting SVM ensemble."""
-        # Encode test labels to numbers
-        testLabels = self.label_encoder.transform(testLabels)
-
+        """Evaluate the model (manual label comparison)."""
         predictions = self.predict(testData)
-        accuracy = accuracy_score(testLabels, predictions)
-        confusionMatrix = confusion_matrix(testLabels, predictions)
-        classificationReport = classification_report(testLabels, predictions, output_dict=True)
+
+        accuracy = np.mean([1 if p == t else 0 for p, t in zip(predictions, testLabels)])
+        confusion = confusion_matrix(testLabels, predictions, labels=self.class_labels)
+        report = classification_report(testLabels, predictions, output_dict=True)
 
         self.testResults = {
             "accuracy": accuracy,
-            "confusionMatrix": confusionMatrix,
-            "predictions": predictions.tolist(),
-            "classificationReport": classificationReport
+            "confusionMatrix": confusion,
+            "predictions": predictions,
+            "classificationReport": report
         }
         return self.testResults
 
     def export(self, modelName):
-        """Export each SVM in the ensemble to a file"""
-        for i, model in enumerate(self.models):
-            model.export(f"{modelName}_{i}")
+        """Export models and alphas (without LabelEncoder)."""
+        with open(f"{modelName}.pkl", "wb") as f:
+            pickle.dump((self.models, self.alphas), f)
 
     def graph(self, filename=None):
         """Visualize performance metrics."""
-        if not self.testResults:
+        if not hasattr(self, 'testResults'):
             raise RuntimeError("Run test() first.")
 
         plt.figure(figsize=(12, 6))
-        sns.heatmap(self.testResults["confusionMatrix"], annot=True, fmt="d", cmap="Blues")
+        sns.heatmap(
+            self.testResults["confusionMatrix"],
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            xticklabels=self.class_labels,
+            yticklabels=self.class_labels
+        )
         plt.title("Confusion Matrix")
         plt.xlabel("Predicted")
         plt.ylabel("True")
@@ -109,16 +138,6 @@ class SVMwBoosting:
         if filename:
             os.makedirs("visuals", exist_ok=True)
             plt.savefig(f"visuals/{filename}.png")
-            print(f"Graph saved as visuals/{filename}.png")
+            plt.close()
         else:
             plt.show()
-
-        plt.close()
-
-def BoostingSVMTrain(trainingData, trainingLabels, testData, testLabels, n_estimators=10):
-    """Train, test, and graph a Boosting SVM ensemble using GestureSVMs."""
-    boosting_svm = SVMwBoosting(n_estimators=n_estimators)
-    boosting_svm.train(trainingData, trainingLabels)
-    boosting_svm.test(testData, testLabels)
-    boosting_svm.graph()
-    return boosting_svm

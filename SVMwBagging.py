@@ -5,6 +5,7 @@ from sklearn.utils import resample
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from GestureSVM import GestureSVM
 import seaborn as sns
+import pickle
 
 class SVMwBagging:
     """A Bagging ensemble of SVMs for gesture detection"""
@@ -21,11 +22,11 @@ class SVMwBagging:
         self.models = []
         self.trained = False
 
-        if model:
-            for _ in range(n_estimators):
-                svm = GestureSVM(model=model)
-                self.models.append(svm)
-            self.trained = True
+        if model and os.path.exists(model):  # Load from file if model exists
+            with open(model, "rb") as f:
+                self.models = pickle.load(f)
+                self.n_estimators = len(self.models)
+                self.trained = True
 
     def train(self, trainingData, trainingLabels):
         """Train each SVM in the ensemble on a bootstrap sample of the training data"""
@@ -46,10 +47,27 @@ class SVMwBagging:
             raise RuntimeError("BaggingSVM must be trained on data before predicting, call train() first")
 
         # Get predictions from each model
+        print(len(self.models))
         predictions = np.array([model.predict(testData) for model in self.models])
 
+        # Convert string labels to numerical if needed
+        if predictions.dtype.kind in ['U', 'S']:  # If predictions are strings
+            unique_labels = np.unique(predictions)
+            label_to_num = {label: idx for idx, label in enumerate(unique_labels)}
+            predictions = np.vectorize(label_to_num.get)(predictions)
+
         # Aggregate predictions (majority voting)
-        final_predictions = np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=predictions)
+        final_predictions = np.apply_along_axis(
+            lambda x: np.bincount(x).argmax(),
+            axis=0,
+            arr=predictions.astype(int)  # Ensure integer type
+        )
+
+        # Convert back to original labels if needed
+        if 'label_to_num' in locals():
+            num_to_label = {v: k for k, v in label_to_num.items()}
+            final_predictions = np.vectorize(num_to_label.get)(final_predictions)
+
         return final_predictions
 
     def test(self, testData, testLabels):
@@ -71,9 +89,9 @@ class SVMwBagging:
         return self.testResults
 
     def export(self, modelName):
-        """Export each SVM in the ensemble to a file"""
-        for i, model in enumerate(self.models):
-            model.export(f"{modelName}_{i}")
+        """Export the entire ensemble to a file"""
+        with open(f"{modelName}.pkl", "wb") as f:
+            pickle.dump(self.models, f)
 
     def graph(self, filename=None):
         """Create a full report on the BaggingSVM. Can save the report to visuals directory if filename is specified"""
