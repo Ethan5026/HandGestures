@@ -84,11 +84,13 @@ class SVMwBoosting:
                 [self.class_labels.index(p) for p in preds]
                 for preds in predictions
             ])
-            weighted_votes = np.dot(np.array(self.alphas).reshape(-1, 1), pred_indices)
-            final_indices = np.argmax(weighted_votes, axis=0)
+
+            # FIX: Transpose pred_indices to (n_samples, n_models)
+            weighted_votes = np.dot(pred_indices.T, np.array(self.alphas).reshape(-1, 1))
+            final_indices = np.argmax(weighted_votes, axis=1)  # Max across classes
             return [self.class_labels[i] for i in final_indices]
         else:
-            # Fallback: Majority voting using np.unique (works with strings)
+            # Fallback: Majority voting
             return [self._mode(preds) for preds in predictions.T]
 
     def _mode(self, arr):

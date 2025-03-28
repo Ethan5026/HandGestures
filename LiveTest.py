@@ -103,18 +103,36 @@ def landmarksToArray(landmarks):
 if __name__ == '__main__':
     #Regular SVM Training with Annotations
 
-    d1, l1, d2, l2 = FullDataLabels()
-    # #d1, l1 = GetDataLabels("HaGRID/train/like.json")
-    # #d2, l2 = GetDataLabels("HaGRID/test/like.json")
-    print("Starting Training")
+    #d1, l1, d2, l2 = FullDataLabels()
+
+    d1, l1 = [], []
+    d2, l2 = [], []
+
+    gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
+
+    for gesture in gestures:
+        train_path = f"HaGRID/train/{gesture}.json"
+        test_path = f"HaGRID/test/{gesture}.json"
+
+        # Process training data
+        data, labels = GetDataLabels(train_path)
+        d1.extend(data)
+        l1.extend(labels)
+
+        # Process test data
+        data, labels = GetDataLabels(test_path)
+        d2.extend(data)
+        l2.extend(labels)
+
+    # print("Starting Training")
 
     # # ONLY FOR THUNDERSVM, don't comment out
     # # label_encoder = LabelEncoder()
     # # numeric_labels = label_encoder.fit_transform(l1)
 
-    svm = GestureSVM()
-    svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
-    svm.test(trainingData=np.array(d2) , trainingLabels=np.array(l2))
+    # svm = GestureSVM()
+    # svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+    #svm.test(trainingData=np.array(d2) , trainingLabels=np.array(l2))
 
     #------------------------------------------------------------------#
 
@@ -144,11 +162,11 @@ if __name__ == '__main__':
 
     #Export Model for Future Use (Leave in Unless Loading pretrained model)
     # current_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-    # svm.export(f"SVMwBoosting-{current_time}")
+    # svm.export(f"BoostingSixClasses-{current_time}")
 
-    #svm = SVMwBagging(model="models/Bagging/ensemble_model_bagging.pkl")
+    svm = SVMwBoosting(model="models/Boosting/BoostingSixClasses-03-28-2025_16-19-14.pkl")
 
-    print("Starting Stream")
-    liveTest(svm)
+    #print("Starting Stream")
+    #liveTest(svm)
 
-    #print(svm.test(testData=np.array(d2) , testLabels=np.array(l2)))
+    print(svm.test(testData=np.array(d2) , testLabels=np.array(l2)))
