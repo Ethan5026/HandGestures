@@ -4,8 +4,10 @@ import joblib
 import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report
-from sklearn.svm import SVC, LinearSVC
+from sklearn.svm import LinearSVC
 import seaborn as sns
+#from cuml.svm import SVC
+#from thundersvm import SVC
 
 class GestureSVM:
     """A SVM for gesture detection"""
@@ -15,6 +17,8 @@ class GestureSVM:
         """Create the SVM with a specified kernel (default 'linear'). Set model to import a pre-trained model"""
 
         self.svm = LinearSVC()
+        #self.svm = SVC(kernel='linear')
+        print(self.svm.get_params())
         if model:
             self.trained = True
             self.svm = joblib.load(model)

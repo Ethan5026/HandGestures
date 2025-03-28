@@ -3,9 +3,12 @@ import cv2
 import time
 import mediapipe as mp
 import numpy as np
+from datetime import datetime
 
-from DataTools import FullDataLabels, SVMLinear, GetDataLabels
+from DataTools import FullDataLabels, SVMLinear, GetDataLabels, PrepareDatasetImages
 from GestureSVM import GestureSVM
+from SVMwBagging import SVMwBagging
+from SVMwBoosting import SVMwBoosting
 
 
 def liveTest(model):
@@ -98,14 +101,54 @@ def landmarksToArray(landmarks):
     return flat_landmarks
 
 if __name__ == '__main__':
+    #Regular SVM Training with Annotations
+
+    d1, l1, d2, l2 = FullDataLabels()
+    # #d1, l1 = GetDataLabels("HaGRID/train/like.json")
+    # #d2, l2 = GetDataLabels("HaGRID/test/like.json")
+    print("Starting Training")
+
+    # # ONLY FOR THUNDERSVM, don't comment out
+    # # label_encoder = LabelEncoder()
+    # # numeric_labels = label_encoder.fit_transform(l1)
+
+    svm = GestureSVM()
+    svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+    svm.test(trainingData=np.array(d2) , trainingLabels=np.array(l2))
+
+    #------------------------------------------------------------------#
+
+    #Bagging SVM Training with Annotations
+
+    # d1, l1, d2, l2 = FullDataLabels()
+    # print("Starting Training")
+    # svm = SVMwBagging()
+    # svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+
+    #------------------------------------------------------------------#
+
+    #Boosting SVM Training with Annotations
+
     #d1, l1, d2, l2 = FullDataLabels()
-    #d1, l1 = GetDataLabels("HaGRID/train/like.json")
-    #d2, l2 = GetDataLabels("HaGRID/test/like.json")
-    #print("Starting Training")
+    # print("Starting Training")
+    # svm = SVMwBoosting()
+    # svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
 
-    #svm = GestureSVM()
-    #svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+    #------------------------------------------------------------------#
 
-    svm = GestureSVM(model="models/AllGestures-03-03-2025.model")
+    #Regular SVM Training with Images
+
+    #d1, l1, d2, l2 = PrepareDatasetImages()
+    # svm = GestureSVM()
+    # svm.train(trainingData=d1 , trainingLabels=l1)
+
+    #Export Model for Future Use (Leave in Unless Loading pretrained model)
+    # current_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+    # svm.export(f"SVMwBoosting-{current_time}")
+
+    #svm = SVMwBagging(model="models/Bagging/ensemble_model_bagging.pkl")
+
     print("Starting Stream")
     liveTest(svm)
+
+    #print(svm.test(testData=np.array(d2) , testLabels=np.array(l2)))

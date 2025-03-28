@@ -1,6 +1,5 @@
 .idea/*
 .idea
 visuals/*
-models/*
-env/
+env/*
 __pycache__
