@@ -9,6 +9,9 @@ from DataTools import FullDataLabels, SVMLinear, GetDataLabels, PrepareDatasetIm
 from GestureSVM import GestureSVM
 from SVMwBagging import SVMwBagging
 from SVMwBoosting import SVMwBoosting
+from GestureCNN import GestureCNN
+from GestureResNet import GestureResNet
+from Gesture1DCNN import Gesture1DCNN
 
 
 def liveTest(model):
@@ -101,72 +104,101 @@ def landmarksToArray(landmarks):
     return flat_landmarks
 
 if __name__ == '__main__':
-    #Regular SVM Training with Annotations
 
-    #d1, l1, d2, l2 = FullDataLabels()
+    #region Load Data and Labels
 
-    d1, l1 = [], []
-    d2, l2 = [], []
+    d1, l1, d2, l2 = FullDataLabels()
 
-    gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
+    #Testing the 6-Class Accuracy
+    # d1, l1 = [], []
+    # d2, l2 = [], []
 
-    for gesture in gestures:
-        train_path = f"HaGRID/train/{gesture}.json"
-        test_path = f"HaGRID/test/{gesture}.json"
+    # gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
 
-        # Process training data
-        data, labels = GetDataLabels(train_path)
-        d1.extend(data)
-        l1.extend(labels)
+    # for gesture in gestures:
+    #     train_path = f"HaGRID/train/{gesture}.json"
+    #     test_path = f"HaGRID/test/{gesture}.json"
 
-        # Process test data
-        data, labels = GetDataLabels(test_path)
-        d2.extend(data)
-        l2.extend(labels)
+    #     # Process training data
+    #     data, labels = GetDataLabels(train_path)
+    #     d1.extend(data)
+    #     l1.extend(labels)
 
-    # print("Starting Training")
+    #     # Process test data
+    #     data, labels = GetDataLabels(test_path)
+    #     d2.extend(data)
+    #     l2.extend(labels)
 
-    # # ONLY FOR THUNDERSVM, don't comment out
-    # # label_encoder = LabelEncoder()
-    # # numeric_labels = label_encoder.fit_transform(l1)
+    #------------------------------------------------------------------#
+
+    #region Regular SVM Training with Annotations
 
     # svm = GestureSVM()
-    # svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
-    #svm.test(trainingData=np.array(d2) , trainingLabels=np.array(l2))
 
     #------------------------------------------------------------------#
 
-    #Bagging SVM Training with Annotations
+    #region Bagging SVM Training with Annotations
 
-    # d1, l1, d2, l2 = FullDataLabels()
-    # print("Starting Training")
     # svm = SVMwBagging()
-    # svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
 
     #------------------------------------------------------------------#
 
-    #Boosting SVM Training with Annotations
+    #region Boosting SVM Training with Annotations
 
-    #d1, l1, d2, l2 = FullDataLabels()
-    # print("Starting Training")
     # svm = SVMwBoosting()
-    # svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
 
     #------------------------------------------------------------------#
 
-    #Regular SVM Training with Images
+    #region Regular SVM Training with Images, MAY NOT WORK! Special Case!
 
     #d1, l1, d2, l2 = PrepareDatasetImages()
     # svm = GestureSVM()
     # svm.train(trainingData=d1 , trainingLabels=l1)
 
-    #Export Model for Future Use (Leave in Unless Loading pretrained model)
-    # current_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-    # svm.export(f"BoostingSixClasses-{current_time}")
+    #------------------------------------------------------------------#
 
-    svm = SVMwBoosting(model="models/Boosting/BoostingSixClasses-03-28-2025_16-19-14.pkl")
+    #region Regular CNN
 
-    #print("Starting Stream")
-    #liveTest(svm)
+    #svm = GestureCNN()
 
+    #------------------------------------------------------------------#
+
+    #region ResNet50 (Untested. Needed 7gb and I didn't have space)
+
+    #d1, l1, d2, l2 = PrepareDatasetImages()
+    #svm = GestureResNet()
+    # svm.train(trainingData=d1 , trainingLabels=l1)
+
+    #------------------------------------------------------------------#
+
+    #region 1-Dimensional CNN
+
+    svm = Gesture1DCNN()
+
+    #------------------------------------------------------------------#
+
+    #region Train Model
+    print("Starting Training")
+    svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+
+    #------------------------------------------------------------------#
+
+    #Load Model (change file/class as needed)
+    # svm = SVMwBoosting(model="models/Boosting/BoostingSixClasses-03-28-2025_16-19-14.pkl")
+
+    #or
+
+    #Save Model
+    current_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
+    svm.export(f"1DCNN-{current_time}")
+
+    #------------------------------------------------------------------#
+
+    #Live Test
+    print("Starting Stream")
+    liveTest(svm)
+
+    #------------------------------------------------------------------#
+
+    #Accuracy
     print(svm.test(testData=np.array(d2) , testLabels=np.array(l2)))
