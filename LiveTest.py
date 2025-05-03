@@ -1,11 +1,14 @@
 # Import Libraries
 import cv2
 import time
+
+import joblib
 import mediapipe as mp
 import numpy as np
 from datetime import datetime
 
 from DataTools import FullDataLabels, SVMLinear, GetDataLabels, PrepareDatasetImages
+from GestureDenseNet import GestureDenseNet
 from GestureSVM import GestureSVM
 from SVMwBagging import SVMwBagging
 from SVMwBoosting import SVMwBoosting
@@ -107,98 +110,105 @@ if __name__ == '__main__':
 
     #region Load Data and Labels
 
-    d1, l1, d2, l2 = FullDataLabels()
+    #d1, l1, d2, l2 = FullDataLabels()
 
     #Testing the 6-Class Accuracy
-    # d1, l1 = [], []
-    # d2, l2 = [], []
+    d1, l1 = [], []
+    d2, l2 = [], []
 
-    # gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
+    gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
 
-    # for gesture in gestures:
-    #     train_path = f"HaGRID/train/{gesture}.json"
-    #     test_path = f"HaGRID/test/{gesture}.json"
+    for gesture in gestures:
+        train_path = f"HaGRID/train/{gesture}.json"
+        test_path = f"HaGRID/test/{gesture}.json"
 
-    #     # Process training data
-    #     data, labels = GetDataLabels(train_path)
-    #     d1.extend(data)
-    #     l1.extend(labels)
+        # Process training data
+        data, labels = GetDataLabels(train_path)
+        d1.extend(data)
+        l1.extend(labels)
 
-    #     # Process test data
-    #     data, labels = GetDataLabels(test_path)
-    #     d2.extend(data)
-    #     l2.extend(labels)
+        # Process test data
+        data, labels = GetDataLabels(test_path)
+        d2.extend(data)
+        l2.extend(labels)
+    #------------------------------------------------------------------#
+        #importing a model
+    if(input("\nEnter 'L' to load in a pre-trained model from a file. Press enter to skip\n") == 'L'):
+        filename = input("\nEnter the filename for the model.\n")
+        model = joblib.load(filename)
+    else:
+        #------------------------------------------------------------------#
+
+        #region Regular SVM Training with Annotations
+
+        # model = GestureSVM()
+
+        #------------------------------------------------------------------#
+
+        #region Bagging SVM Training with Annotations
+
+        # model = SVMwBagging()
+
+        #------------------------------------------------------------------#
+
+        #region Boosting SVM Training with Annotations
+
+        # model = SVMwBoosting()
+
+        #------------------------------------------------------------------#
+
+        #region Regular SVM Training with Images, MAY NOT WORK! Special Case!
+
+        #d1, l1, d2, l2 = PrepareDatasetImages()
+        # model = GestureSVM()
+        # model.train(trainingData=d1 , trainingLabels=l1)
+
+        #------------------------------------------------------------------#
+
+        #region Regular CNN
+
+        #model = GestureCNN()
+
+        #------------------------------------------------------------------#
+
+        #region ResNet50 (Untested. Needed 7gb and I didn't have space)
+
+        #d1, l1, d2, l2 = PrepareDatasetImages()
+        model = GestureDenseNet()
+        # model.train(trainingData=d1 , trainingLabels=l1)
+
+        #------------------------------------------------------------------#
+
+        #region 1-Dimensional CNN
+
+        #model = Gesture1DCNN()
+
+        #------------------------------------------------------------------#
+
+        #region SVM with Bagging
+
+        #model = Bagging(GestureSVM, 500)
+
+
+        #region Train Model
+        print("Starting Training")
+        model.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+
 
     #------------------------------------------------------------------#
-
-    #region Regular SVM Training with Annotations
-
-    # svm = GestureSVM()
-
-    #------------------------------------------------------------------#
-
-    #region Bagging SVM Training with Annotations
-
-    # svm = SVMwBagging()
-
-    #------------------------------------------------------------------#
-
-    #region Boosting SVM Training with Annotations
-
-    # svm = SVMwBoosting()
-
-    #------------------------------------------------------------------#
-
-    #region Regular SVM Training with Images, MAY NOT WORK! Special Case!
-
-    #d1, l1, d2, l2 = PrepareDatasetImages()
-    # svm = GestureSVM()
-    # svm.train(trainingData=d1 , trainingLabels=l1)
-
-    #------------------------------------------------------------------#
-
-    #region Regular CNN
-
-    #svm = GestureCNN()
-
-    #------------------------------------------------------------------#
-
-    #region ResNet50 (Untested. Needed 7gb and I didn't have space)
-
-    #d1, l1, d2, l2 = PrepareDatasetImages()
-    #svm = GestureResNet()
-    # svm.train(trainingData=d1 , trainingLabels=l1)
-
-    #------------------------------------------------------------------#
-
-    #region 1-Dimensional CNN
-
-    svm = Gesture1DCNN()
-
-    #------------------------------------------------------------------#
-
-    #region Train Model
-    print("Starting Training")
-    svm.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
-
-    #------------------------------------------------------------------#
-
-    #Load Model (change file/class as needed)
-    # svm = SVMwBoosting(model="models/Boosting/BoostingSixClasses-03-28-2025_16-19-14.pkl")
-
-    #or
-
-    #Save Model
-    current_time = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-    svm.export(f"1DCNN-{current_time}")
-
+    #Save your model
+    if(input("\nEnter 'S' to save your model. To skip, press enter.\n ") == 'S'):
+        modelName = input("\nEnter the model name to save your model, no spaces.\n")
+        joblib.dump(model, f"models/{modelName}.model")
+        print(f"Saved to models/{modelName}.model")
     #------------------------------------------------------------------#
 
     #Live Test
     print("Starting Stream")
-    liveTest(svm)
+    liveTest(model)
 
     #------------------------------------------------------------------#
 
     #Accuracy
-    print(svm.test(testData=np.array(d2) , testLabels=np.array(l2)))
+    print(model.test(testData=np.array(d2) , testLabels=np.array(l2)))
+
