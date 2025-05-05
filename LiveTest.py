@@ -108,29 +108,30 @@ def landmarksToArray(landmarks):
 
 if __name__ == '__main__':
 
+    print("Gathering Data")
     #region Load Data and Labels
 
-    #d1, l1, d2, l2 = FullDataLabels()
+    d1, l1, d2, l2 = FullDataLabels()
 
-    #Testing the 6-Class Accuracy
-    d1, l1 = [], []
-    d2, l2 = [], []
-
-    gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
-
-    for gesture in gestures:
-        train_path = f"HaGRID/train/{gesture}.json"
-        test_path = f"HaGRID/test/{gesture}.json"
-
-        # Process training data
-        data, labels = GetDataLabels(train_path)
-        d1.extend(data)
-        l1.extend(labels)
-
-        # Process test data
-        data, labels = GetDataLabels(test_path)
-        d2.extend(data)
-        l2.extend(labels)
+    # #Testing the 6-Class Accuracy
+    # d1, l1 = [], []
+    # d2, l2 = [], []
+    #
+    # gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
+    #
+    # for gesture in gestures:
+    #     train_path = f"HaGRID/train/{gesture}.json"
+    #     test_path = f"HaGRID/test/{gesture}.json"
+    #
+    #     # Process training data
+    #     data, labels = GetDataLabels(train_path)
+    #     d1.extend(data)
+    #     l1.extend(labels)
+    #
+    #     # Process test data
+    #     data, labels = GetDataLabels(test_path)
+    #     d2.extend(data)
+    #     l2.extend(labels)
     #------------------------------------------------------------------#
         #importing a model
     if(input("\nEnter 'L' to load in a pre-trained model from a file. Press enter to skip\n") == 'L'):
@@ -192,7 +193,7 @@ if __name__ == '__main__':
 
         #region Train Model
         print("Starting Training")
-        model.train(trainingData=np.array(d1) , trainingLabels=np.array(l1))
+        model.train(trainingData=np.array(d1) , trainingLabels=np.array(l1), epochs=10)
 
 
     #------------------------------------------------------------------#
@@ -202,13 +203,13 @@ if __name__ == '__main__':
         joblib.dump(model, f"models/{modelName}.model")
         print(f"Saved to models/{modelName}.model")
     #------------------------------------------------------------------#
+    print("Beginning Testing")
+    #Accuracy
+    print(model.test(testData=np.array(d2) , testLabels=np.array(l2)))
+    #------------------------------------------------------------------#
 
     #Live Test
     print("Starting Stream")
     liveTest(model)
 
     #------------------------------------------------------------------#
-
-    #Accuracy
-    print(model.test(testData=np.array(d2) , testLabels=np.array(l2)))
-
