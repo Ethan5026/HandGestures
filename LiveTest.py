@@ -1,20 +1,13 @@
-# Import Libraries
 import cv2
 import time
 
 import joblib
 import mediapipe as mp
 import numpy as np
-from datetime import datetime
 
-from DataTools import FullDataLabels, SVMLinear, GetDataLabels, PrepareDatasetImages
+
+from DataTools import FullDataLabels
 from GestureDenseNet import GestureDenseNet
-from GestureSVM import GestureSVM
-from SVMwBagging import SVMwBagging
-from SVMwBoosting import SVMwBoosting
-from GestureCNN import GestureCNN
-from GestureResNet import GestureResNet
-from Gesture1DCNN import Gesture1DCNN
 
 
 def liveTest(model):
@@ -107,109 +100,31 @@ def landmarksToArray(landmarks):
     return flat_landmarks
 
 if __name__ == '__main__':
+    if(input("\nEnter 'L' to load in a pre-trained model from a file. Press enter to skip and train a new model\n") == 'L'):
+        filename = input("\nEnter the filepath for your saved model. Leave empty for default best model.\n")
+        if(filename == ""):
+            model = joblib.load("models/BEST_GestureDenseNet_AllGestures_100Epochs.model")
+        else:
+            model = joblib.load(filename)
+        print("Starting Stream")
+        liveTest(model)
 
-    print("Gathering Data")
-    #region Load Data and Labels
-
-    d1, l1, d2, l2 = FullDataLabels()
-
-    # #Testing the 6-Class Accuracy
-    # d1, l1 = [], []
-    # d2, l2 = [], []
-    #
-    # gestures = ['like', 'dislike', 'palm', 'peace', 'fist', 'ok']
-    #
-    # for gesture in gestures:
-    #     train_path = f"HaGRID/train/{gesture}.json"
-    #     test_path = f"HaGRID/test/{gesture}.json"
-    #
-    #     # Process training data
-    #     data, labels = GetDataLabels(train_path)
-    #     d1.extend(data)
-    #     l1.extend(labels)
-    #
-    #     # Process test data
-    #     data, labels = GetDataLabels(test_path)
-    #     d2.extend(data)
-    #     l2.extend(labels)
-    #------------------------------------------------------------------#
-        #importing a model
-    if(input("\nEnter 'L' to load in a pre-trained model from a file. Press enter to skip\n") == 'L'):
-        filename = input("\nEnter the filename for the model.\n")
-        model = joblib.load(filename)
     else:
-        #------------------------------------------------------------------#
 
-        #region Regular SVM Training with Annotations
-
-        # model = GestureSVM()
-
-        #------------------------------------------------------------------#
-
-        #region Bagging SVM Training with Annotations
-
-        # model = SVMwBagging()
-
-        #------------------------------------------------------------------#
-
-        #region Boosting SVM Training with Annotations
-
-        # model = SVMwBoosting()
-
-        #------------------------------------------------------------------#
-
-        #region Regular SVM Training with Images, MAY NOT WORK! Special Case!
-
-        #d1, l1, d2, l2 = PrepareDatasetImages()
-        # model = GestureSVM()
-        # model.train(trainingData=d1 , trainingLabels=l1)
-
-        #------------------------------------------------------------------#
-
-        #region Regular CNN
-
-        #model = GestureCNN()
-
-        #------------------------------------------------------------------#
-
-        #region ResNet50 (Untested. Needed 7gb and I didn't have space)
-
-        #d1, l1, d2, l2 = PrepareDatasetImages()
+        d1, l1, d2, l2 = FullDataLabels()
         model = GestureDenseNet()
-        # model.train(trainingData=d1 , trainingLabels=l1)
 
-        #------------------------------------------------------------------#
-
-        #region 1-Dimensional CNN
-
-        #model = Gesture1DCNN()
-
-        #------------------------------------------------------------------#
-
-        #region SVM with Bagging
-
-        #model = Bagging(GestureSVM, 500)
-
-
-        #region Train Model
         print("Starting Training")
         model.train(trainingData=np.array(d1) , trainingLabels=np.array(l1), epochs=10)
 
+        if(input("\nEnter 'S' to save your model. To skip, press enter.\n ") == 'S'):
+            modelName = input("\nEnter the model name to save your model, no spaces.\n")
+            joblib.dump(model, f"models/{modelName}.model")
+            print(f"Saved to models/{modelName}.model")
 
-    #------------------------------------------------------------------#
-    #Save your model
-    if(input("\nEnter 'S' to save your model. To skip, press enter.\n ") == 'S'):
-        modelName = input("\nEnter the model name to save your model, no spaces.\n")
-        joblib.dump(model, f"models/{modelName}.model")
-        print(f"Saved to models/{modelName}.model")
-    #------------------------------------------------------------------#
-    print("Beginning Testing")
-    #Accuracy
-    print(model.test(testData=np.array(d2) , testLabels=np.array(l2)))
-    #------------------------------------------------------------------#
+        print("Beginning Testing")
+        model.test(np.array(d2), np.array(l2))
 
-    #Live Test
-    print("Starting Stream")
-    liveTest(model)
-
-    #------------------------------------------------------------------#
+        #Live Test
+        print("Starting Stream. Press q to quit")
+        liveTest(model)
